@@ -115,10 +115,15 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
   }, [])
 
   const loadTemplateList = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('hwpx_mappings')
       .select('template_name')
       .eq('user_id', userId)
+
+    if (error) {
+      console.error('템플릿 목록 조회 실패:', error.message)
+      return
+    }
 
     if (data) {
       const names = [...new Set(data.map((d: { template_name: string }) => d.template_name))]
@@ -553,29 +558,31 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
       )}
 
       {/* 저장된 매핑 불러오기 */}
-      {savedTemplates.length > 0 && (
-        <div className="border border-border rounded-xl p-4 space-y-2 bg-card">
-          <h2 className="font-semibold text-sm text-text">저장된 매핑</h2>
+      <div className="border border-border rounded-xl p-4 space-y-2 bg-card">
+        <h2 className="font-semibold text-sm text-text">저장된 매핑</h2>
+        {savedTemplates.length === 0 ? (
+          <p className="text-xs text-text-light">저장된 매핑이 없습니다.</p>
+        ) : (
           <div className="flex flex-wrap gap-2">
             {savedTemplates.map(name => (
-              <div key={name} className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-cream">
+              <div key={name} className="flex items-center gap-1 border border-border rounded-lg bg-cream">
                 <button
                   onClick={() => loadMappings(name)}
-                  className="text-sm text-text hover:text-primary transition-colors"
+                  className="text-sm text-text hover:text-primary transition-colors px-3 py-2 min-h-[40px]"
                 >
                   {name}
                 </button>
                 <button
                   onClick={() => deleteTemplate(name)}
-                  className="text-danger/60 hover:text-danger text-xs ml-1 transition-colors"
+                  className="text-danger/60 hover:text-danger text-sm px-2 py-2 min-h-[40px] transition-colors"
                 >
                   ✕
                 </button>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 매핑 테이블 */}
       {mappings.length > 0 && (
