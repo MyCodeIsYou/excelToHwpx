@@ -175,7 +175,6 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
 
   // 매핑 불러오기
   const loadMappings = async (name: string) => {
-    alert('loadMappings 호출: ' + name)
     try {
       const { data, error } = await supabase
         .from('hwpx_mappings')
@@ -568,34 +567,29 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
       )}
 
       {/* 저장된 매핑 불러오기 */}
-      <div className="border border-border rounded-xl p-4 space-y-2 bg-card">
-        <h2 className="font-semibold text-sm text-text">저장된 매핑</h2>
-        {savedTemplates.length === 0 ? (
-          <p className="text-xs text-text-light">저장된 매핑이 없습니다.</p>
-        ) : (
-          <div className="space-y-2">
+      {savedTemplates.length > 0 && (
+        <div className="border border-border rounded-xl p-4 space-y-2 bg-card">
+          <h2 className="font-semibold text-sm text-text">저장된 매핑</h2>
+          <div className="flex flex-wrap gap-2">
             {savedTemplates.map(name => (
-              <div
-                key={name}
-                role="button"
-                tabIndex={0}
-                onClick={() => { loadMappings(name) }}
-                onKeyDown={e => { if (e.key === 'Enter') loadMappings(name) }}
-                className="flex items-center justify-between border border-border rounded-lg bg-cream px-4 py-3 cursor-pointer active:bg-selected touch-action-manipulation select-none"
-                style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
-              >
-                <span className="text-sm font-medium text-text">{name}</span>
+              <div key={name} className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-cream">
                 <button
-                  onClick={e => { e.stopPropagation(); deleteTemplate(name) }}
-                  className="text-danger text-lg px-2 py-1 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                  onClick={() => loadMappings(name)}
+                  className="text-sm text-text hover:text-primary transition-colors"
+                >
+                  {name}
+                </button>
+                <button
+                  onClick={() => deleteTemplate(name)}
+                  className="text-danger/60 hover:text-danger text-xs ml-1 transition-colors"
                 >
                   ✕
                 </button>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 매핑 테이블 */}
       {mappings.length > 0 && (
