@@ -1,6 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  /* 드림포이엔 블루-그린 팔레트 */
+  --color-bg: #F4F8FB;
+  --color-card: #FFFFFF;
+  --color-cream: #EBF4F8;
+  --color-peach: #E0F0F6;
+  --color-primary: #2E8BC0;
+  --color-primary-dark: #1A6FA0;
+  --color-accent: #3DB87A;
+  --color-accent-dark: #2D9A64;
+  --color-grad-from: #2E8BC0;
+  --color-grad-to: #3DB87A;
+  --color-text: #1E293B;
+  --color-text-light: #64748B;
+  --color-border: #DAE5ED;
+  --color-selected: #E8F4FD;
+  --color-selected-ring: #2E8BC0;
+  --color-danger: #EF4444;
+  --color-danger-hover: #DC2626;
+  --color-success: #3DB87A;
+  --color-sidebar: #F8FBFD;
+  --color-header-text: #FFFFFF;
+}
+
 :root {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
 }
