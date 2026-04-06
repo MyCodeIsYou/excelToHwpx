@@ -175,6 +175,7 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
 
   // 매핑 불러오기
   const loadMappings = async (name: string) => {
+    alert('loadMappings 호출: ' + name)
     try {
       const { data, error } = await supabase
         .from('hwpx_mappings')
