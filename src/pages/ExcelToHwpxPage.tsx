@@ -572,18 +572,21 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
         {savedTemplates.length === 0 ? (
           <p className="text-xs text-text-light">저장된 매핑이 없습니다.</p>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <div className="space-y-2">
             {savedTemplates.map(name => (
-              <div key={name} className="flex items-center gap-1 border border-border rounded-lg bg-cream">
+              <div
+                key={name}
+                role="button"
+                tabIndex={0}
+                onClick={() => { loadMappings(name) }}
+                onKeyDown={e => { if (e.key === 'Enter') loadMappings(name) }}
+                className="flex items-center justify-between border border-border rounded-lg bg-cream px-4 py-3 cursor-pointer active:bg-selected touch-action-manipulation select-none"
+                style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+              >
+                <span className="text-sm font-medium text-text">{name}</span>
                 <button
-                  onClick={() => loadMappings(name)}
-                  className="text-sm text-text hover:text-primary transition-colors px-3 py-2 min-h-[40px]"
-                >
-                  {name}
-                </button>
-                <button
-                  onClick={() => deleteTemplate(name)}
-                  className="text-danger/60 hover:text-danger text-sm px-2 py-2 min-h-[40px] transition-colors"
+                  onClick={e => { e.stopPropagation(); deleteTemplate(name) }}
+                  className="text-danger text-lg px-2 py-1 min-w-[32px] min-h-[32px] flex items-center justify-center"
                 >
                   ✕
                 </button>
