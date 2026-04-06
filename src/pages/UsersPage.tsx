@@ -5,6 +5,7 @@ import { SUPER_ADMIN_EMAIL } from '@/lib/constants'
 interface UserInfo {
   id: string
   email: string
+  approved: boolean
   created_at: string
 }
 
@@ -12,7 +13,6 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserInfo[]>([])
   const [loading, setLoading] = useState(true)
 
-  // 새 사용자 추가
   const [newEmail, setNewEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [adding, setAdding] = useState(false)
@@ -21,12 +21,10 @@ export default function UsersPage() {
     setLoading(true)
     const { data } = await supabase
       .from('profiles')
-      .select('id, email, created_at')
+      .select('id, email, approved, created_at')
       .order('created_at', { ascending: true })
 
-    if (data) {
-      setUsers(data)
-    }
+    if (data) setUsers(data)
     setLoading(false)
   }
 
@@ -49,10 +47,21 @@ export default function UsersPage() {
     } else {
       setNewEmail('')
       setNewPassword('')
-      // 트리거로 profiles에 자동 추가되므로 잠시 후 리로드
       setTimeout(loadUsers, 1000)
     }
     setAdding(false)
+  }
+
+  const handleApprove = async (userId: string) => {
+    await supabase.from('profiles').update({ approved: true }).eq('id', userId)
+    loadUsers()
+  }
+
+  const handleRevoke = async (userId: string, email: string) => {
+    if (email === SUPER_ADMIN_EMAIL) return
+    if (!confirm(`"${email}" 사용자의 승인을 취소하시겠습니까?`)) return
+    await supabase.from('profiles').update({ approved: false }).eq('id', userId)
+    loadUsers()
   }
 
   const handleDelete = async (userId: string, email: string) => {
@@ -62,17 +71,8 @@ export default function UsersPage() {
     }
     if (!confirm(`"${email}" 사용자를 삭제하시겠습니까?`)) return
 
-    // profiles 테이블에서 삭제 (auth.users는 Supabase Dashboard에서 관리)
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', userId)
-
-    if (error) {
-      alert('삭제 실패: ' + error.message)
-    } else {
-      loadUsers()
-    }
+    await supabase.from('profiles').delete().eq('id', userId)
+    loadUsers()
   }
 
   const formatDate = (dateStr: string) => {
@@ -82,9 +82,47 @@ export default function UsersPage() {
     })
   }
 
+  const pendingUsers = users.filter(u => !u.approved && u.email !== SUPER_ADMIN_EMAIL)
+  const approvedUsers = users.filter(u => u.approved || u.email === SUPER_ADMIN_EMAIL)
+
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <h1 className="text-xl font-bold text-text">사용자 관리</h1>
+
+      {/* 승인 대기 */}
+      {pendingUsers.length > 0 && (
+        <div className="border-2 border-selected-ring/40 rounded-xl bg-selected/30 overflow-hidden">
+          <div className="px-4 py-3 border-b border-selected-ring/20 bg-selected/50">
+            <h2 className="text-sm font-semibold text-primary">
+              승인 대기 ({pendingUsers.length}명)
+            </h2>
+          </div>
+          <div className="divide-y divide-border">
+            {pendingUsers.map(u => (
+              <div key={u.id} className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-text">{u.email}</p>
+                  <p className="text-xs text-text-light">{formatDate(u.created_at)}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleApprove(u.id)}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-accent text-white hover:bg-accent-dark transition-colors font-medium"
+                  >
+                    승인
+                  </button>
+                  <button
+                    onClick={() => handleDelete(u.id, u.email)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-danger/30 text-danger hover:bg-danger/10 transition-colors"
+                  >
+                    거절
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 사용자 추가 */}
       <div className="border border-border rounded-xl bg-card p-4">
@@ -97,7 +135,7 @@ export default function UsersPage() {
               value={newEmail}
               onChange={e => setNewEmail(e.target.value)}
               required
-              className="w-full rounded-lg border border-border bg-sunshine px-3 py-2 text-sm focus:ring-2 focus:ring-warm focus:outline-none"
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
               placeholder="user@example.com"
             />
           </div>
@@ -109,7 +147,7 @@ export default function UsersPage() {
               onChange={e => setNewPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full rounded-lg border border-border bg-sunshine px-3 py-2 text-sm focus:ring-2 focus:ring-warm focus:outline-none"
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
               placeholder="6자 이상"
             />
           </div>
@@ -123,18 +161,18 @@ export default function UsersPage() {
         </form>
       </div>
 
-      {/* 사용자 목록 */}
+      {/* 승인된 사용자 목록 */}
       <div className="border border-border rounded-xl bg-card overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <h2 className="text-sm font-semibold text-text">
-            사용자 목록 ({users.length}명)
+            승인된 사용자 ({approvedUsers.length}명)
           </h2>
         </div>
 
         {loading ? (
           <div className="p-8 text-center text-sm text-text-light">불러오는 중...</div>
-        ) : users.length === 0 ? (
-          <div className="p-8 text-center text-sm text-text-light">사용자가 없습니다.</div>
+        ) : approvedUsers.length === 0 ? (
+          <div className="p-8 text-center text-sm text-text-light">승인된 사용자가 없습니다.</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -142,11 +180,11 @@ export default function UsersPage() {
                 <th className="px-4 py-2 text-left font-medium">이메일</th>
                 <th className="px-4 py-2 text-left font-medium">역할</th>
                 <th className="px-4 py-2 text-left font-medium">가입일</th>
-                <th className="px-4 py-2 w-16"></th>
+                <th className="px-4 py-2 w-24"></th>
               </tr>
             </thead>
             <tbody>
-              {users.map(u => {
+              {approvedUsers.map(u => {
                 const isSuperAdmin = u.email === SUPER_ADMIN_EMAIL
                 return (
                   <tr key={u.id} className="border-t border-border hover:bg-peach/10 transition-colors">
@@ -157,8 +195,8 @@ export default function UsersPage() {
                           최고관리자
                         </span>
                       ) : (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-cream text-text-light">
-                          일반
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent/15 text-accent">
+                          승인됨
                         </span>
                       )}
                     </td>
@@ -167,12 +205,20 @@ export default function UsersPage() {
                       {isSuperAdmin ? (
                         <span className="text-xs text-text-light/40">보호됨</span>
                       ) : (
-                        <button
-                          onClick={() => handleDelete(u.id, u.email)}
-                          className="text-xs px-2 py-1 rounded-lg border border-danger/30 text-danger hover:bg-danger/10 transition-colors"
-                        >
-                          삭제
-                        </button>
+                        <div className="flex gap-1 justify-center">
+                          <button
+                            onClick={() => handleRevoke(u.id, u.email)}
+                            className="text-xs px-2 py-1 rounded-lg border border-text-light/30 text-text-light hover:bg-peach/50 transition-colors"
+                          >
+                            승인취소
+                          </button>
+                          <button
+                            onClick={() => handleDelete(u.id, u.email)}
+                            className="text-xs px-2 py-1 rounded-lg border border-danger/30 text-danger hover:bg-danger/10 transition-colors"
+                          >
+                            삭제
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

@@ -430,6 +430,25 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
         엑셀 셀 값을 HWPX 템플릿의 플레이스홀더($...$)에 매핑하여 변환합니다.
       </p>
 
+      {/* 샘플 파일 다운로드 */}
+      <div className="border border-border rounded-xl p-4 bg-card flex flex-wrap items-center gap-3">
+        <span className="text-sm text-text-light">샘플 파일:</span>
+        <a
+          href="convert.xls"
+          download
+          className="text-sm px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-selected transition-colors"
+        >
+          convert.xls
+        </a>
+        <a
+          href="convert.hwpx"
+          download
+          className="text-sm px-3 py-1.5 rounded-lg border border-accent/30 text-accent hover:bg-selected transition-colors"
+        >
+          convert.hwpx
+        </a>
+      </div>
+
       {/* 파일 업로드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="border border-border rounded-xl p-4 space-y-2 bg-card">
