@@ -423,16 +423,20 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
         }
       }
 
-      const blob = await finalZip.generateAsync({
+      const zipBlob = await finalZip.generateAsync({
         type: 'blob',
         compression: 'DEFLATE',
         compressionOptions: { level: 6 },
       })
+      // application/octet-stream으로 래핑하여 모바일 브라우저의 자동 ZIP 해제 방지
+      const blob = new Blob([zipBlob], { type: 'application/octet-stream' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       a.download = hwpxFile?.name?.replace('.hwpx', '_완성.hwpx') || 'output.hwpx'
+      document.body.appendChild(a)
       a.click()
+      document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err) {
       alert('생성 중 오류: ' + (err as Error).message)
@@ -506,8 +510,8 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
 
       {/* 엑셀 미리보기 (병합 셀 반영) */}
       {previewData.length > 0 && (
-        <div className="border border-border rounded-xl p-4 space-y-2 bg-card">
-          <div className="flex items-center gap-3">
+        <div className="border border-border rounded-xl p-4 space-y-2 bg-card relative z-0">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-semibold text-sm text-text">엑셀 미리보기</h2>
             {selectedMapping !== null && (
               <span className="text-xs px-2 py-0.5 rounded-lg bg-selected text-primary font-medium">
@@ -520,22 +524,22 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
               </span>
             )}
           </div>
-          <div className="overflow-auto max-h-[500px] border border-border rounded-lg">
+          <div className="overflow-auto max-h-[300px] md:max-h-[500px] border border-border rounded-lg relative z-0" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="text-xs border-collapse">
               <thead>
                 <tr className="bg-cream">
-                  <th className="border border-border px-1 py-0.5 sticky top-0 left-0 bg-cream z-20 min-w-[30px]"></th>
+                  <th className="border border-border px-1 py-0.5 bg-cream min-w-[30px]"></th>
                   {Array.from({ length: maxCol + 1 }, (_, ci) => (
-                    <th key={ci} className="border border-border px-1 py-0.5 font-mono sticky top-0 bg-cream z-10 min-w-[40px] text-text-light">
+                    <th key={ci} className="border border-border px-1 py-0.5 font-mono bg-cream min-w-[40px] text-text-light">
                       {XLSX.utils.encode_col(ci)}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {previewData.slice(0, 100).map((row, ri) => (
+                {previewData.slice(0, 30).map((row, ri) => (
                   <tr key={ri}>
-                    <td className="border border-border px-1 py-0.5 font-mono bg-cream sticky left-0 z-10 text-center text-[10px] text-text-light">
+                    <td className="border border-border px-1 py-0.5 font-mono bg-cream text-center text-[10px] text-text-light">
                       {ri + 1}
                     </td>
                     {row.map((val, ci) => {
