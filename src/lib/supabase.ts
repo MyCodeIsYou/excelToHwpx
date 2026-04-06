@@ -9,9 +9,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
+  global: {
+    fetch: (url, options = {}) => {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10000)
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+        cache: 'no-store',
+      }).finally(() => clearTimeout(timeout))
+    },
+  },
 })
 
-// API 호출 전 세션 갱신
 export async function ensureSession() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) {
