@@ -1,9 +1,9 @@
-import type { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 interface HeaderProps {
-  user: User
-  onMenuToggle: () => void
+  user: User;
+  onMenuToggle: () => void;
 }
 
 export default function Header({ user, onMenuToggle }: HeaderProps) {
@@ -14,8 +14,18 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
           onClick={onMenuToggle}
           className="md:hidden text-white p-1 rounded-lg hover:bg-white/20 transition-colors"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 6h16M4 12h16M4 18h16"
+            />
           </svg>
         </button>
         <div className="bg-white rounded-lg px-2 py-1">
@@ -32,9 +42,11 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
           rel="noopener noreferrer"
           className="text-xs md:text-sm px-2 md:px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
         >
-          <span className="hidden sm:inline">드림포이엔_</span>홈페이지
+          <span className="hidden sm:inline">드림포이엔 </span>홈페이지
         </a>
-        <span className="text-xs md:text-sm opacity-90 hidden md:inline">{user.email}</span>
+        <span className="text-xs md:text-sm opacity-90 hidden md:inline">
+          {user.email}
+        </span>
         <button
           onClick={() => supabase.auth.signOut()}
           className="text-xs md:text-sm px-2 md:px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
@@ -43,5 +55,5 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
         </button>
       </div>
     </header>
-  )
+  );
 }
