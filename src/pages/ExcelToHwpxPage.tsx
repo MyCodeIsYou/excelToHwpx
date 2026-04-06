@@ -175,29 +175,38 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
 
   // 매핑 불러오기
   const loadMappings = async (name: string) => {
-    const { data, error } = await supabase
-      .from('hwpx_mappings')
-      .select('placeholder, sheet_name, excel_cell')
-      .eq('user_id', userId)
-      .eq('template_name', name)
+    try {
+      const { data, error } = await supabase
+        .from('hwpx_mappings')
+        .select('placeholder, sheet_name, excel_cell')
+        .eq('user_id', userId)
+        .eq('template_name', name)
 
-    if (error) {
-      alert('불러오기 실패: ' + error.message)
-      return
-    }
+      if (error) {
+        alert('불러오기 실패: ' + error.message)
+        return
+      }
 
-    if (data && data.length > 0) {
-      setTemplateName(name)
-      setMappings(data.map((d: { placeholder: string; sheet_name: string; excel_cell: string }) => {
-        const m: MappingRow = {
-          hwpxPlaceholder: d.placeholder,
-          sheetName: d.sheet_name || '',
-          excelCell: d.excel_cell || '',
-          excelValue: '',
-        }
-        m.excelValue = resolveValue(m)
-        return m
-      }))
+      if (!data || data.length === 0) {
+        alert(`"${name}" 매핑 데이터가 없습니다.`)
+        return
+      }
+
+      if (data.length > 0) {
+        setTemplateName(name)
+        setMappings(data.map((d: { placeholder: string; sheet_name: string; excel_cell: string }) => {
+          const m: MappingRow = {
+            hwpxPlaceholder: d.placeholder,
+            sheetName: d.sheet_name || '',
+            excelCell: d.excel_cell || '',
+            excelValue: '',
+          }
+          m.excelValue = resolveValue(m)
+          return m
+        }))
+      }
+    } catch (err) {
+      alert('매핑 불러오기 오류: ' + (err as Error).message)
     }
   }
 
