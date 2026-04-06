@@ -327,12 +327,27 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
     const phs = extractPlaceholders(xml)
     setPlaceholders(phs)
 
-    setMappings(phs.map(ph => ({
-      sheetName: '',
-      excelCell: '',
-      hwpxPlaceholder: ph,
-      excelValue: '',
-    })))
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    if (isMobile) {
+      // 모바일: 기존 매핑 유지
+      setMappings(prev => {
+        const existing = new Map(prev.map(m => [m.hwpxPlaceholder, m]))
+        return phs.map(ph => existing.get(ph) || ({
+          sheetName: '',
+          excelCell: '',
+          hwpxPlaceholder: ph,
+          excelValue: '',
+        }))
+      })
+    } else {
+      // PC: 새로 세팅
+      setMappings(phs.map(ph => ({
+        sheetName: '',
+        excelCell: '',
+        hwpxPlaceholder: ph,
+        excelValue: '',
+      })))
+    }
   }, [])
 
   // 매핑 업데이트 (셀 주소만 수동 입력 시 — 시트는 유지)
