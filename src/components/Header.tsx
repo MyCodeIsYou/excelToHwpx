@@ -12,7 +12,7 @@ export default function Header({ user, onMenuToggle }: HeaderProps) {
       <div className="flex items-center gap-2 md:gap-3">
         <button
           onClick={onMenuToggle}
-          className="md:hidden text-white p-1 rounded-lg hover:bg-white/20 transition-colors"
+          className="text-white p-1.5 rounded-lg hover:bg-white/20 transition-colors"
         >
           <svg
             className="w-5 h-5"

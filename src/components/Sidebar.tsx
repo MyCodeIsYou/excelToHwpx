@@ -26,21 +26,20 @@ export default function Sidebar({ activePage, onNavigate, userEmail, open, onClo
 
   return (
     <>
-      {/* 모바일 오버레이 */}
+      {/* 오버레이 */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/30 z-30 md:hidden"
+          className="fixed inset-0 bg-black/30 z-30"
           onClick={onClose}
         />
       )}
 
       <aside className={`
-        fixed md:static top-14 left-0 z-40
+        fixed top-14 left-0 z-40
         w-56 bg-sidebar border-r border-border
-        min-h-[calc(100vh-56px)] flex flex-col justify-between shrink-0
+        h-[calc(100vh-56px)] flex flex-col justify-between shrink-0
         transform transition-transform duration-200 ease-in-out
-        ${open ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'}
-        md:translate-x-0 md:pointer-events-auto
+        ${open ? 'translate-x-0' : '-translate-x-full pointer-events-none'}
       `}>
         <nav className="p-3 space-y-1">
           {visibleItems.map(item => (
