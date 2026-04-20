@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import JSZip from 'jszip'
 import { supabase, ensureSession } from '@/lib/supabase'
+import { useDragScroll } from '@/lib/useDragScroll'
 
 interface MappingRow {
   sheetName: string     // 엑셀 시트명
@@ -60,6 +61,7 @@ interface PageProps {
 }
 
 export default function ExcelToHwpxPage({ userId }: PageProps) {
+  const dragScroll = useDragScroll()
   const [excelData, setExcelData] = useState<Record<string, string>>({})
   const [sheetNames, setSheetNames] = useState<string[]>([])
   const [activeSheet, setActiveSheet] = useState('')
@@ -543,7 +545,7 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
                 </span>
               )}
             </div>
-            <div className="overflow-auto max-h-[300px] md:max-h-[600px] border border-border rounded-lg relative z-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div ref={dragScroll.ref} onMouseDown={dragScroll.onMouseDown} className="overflow-auto max-h-[300px] md:max-h-[600px] border border-border rounded-lg relative z-0 cursor-grab" style={{ WebkitOverflowScrolling: 'touch' }}>
               <table className="text-xs border-collapse">
                 <thead>
                   <tr className="bg-cream">
