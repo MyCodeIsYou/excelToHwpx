@@ -79,6 +79,7 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
   const [savedTemplates, setSavedTemplates] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [hwpxOriginalBuf, setHwpxOriginalBuf] = useState<Uint8Array | null>(null)
+  const mappingsLoadedRef = useRef(false)
 
   // 전체 시트 데이터: { sheetName: { cellAddr: value } }
   const allSheetDataRef = useRef<Record<string, Record<string, string>>>({})
@@ -177,6 +178,8 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
 
   // 매핑 불러오기
   const loadMappings = async (name: string) => {
+    console.log('[loadMappings] 호출:', name)
+    console.log('[loadMappings] 현재 placeholders:', placeholders)
     try {
       await ensureSession()
       const { data, error } = await supabase
@@ -184,6 +187,8 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
         .select('placeholder, sheet_name, excel_cell')
         .eq('user_id', userId)
         .eq('template_name', name)
+
+      console.log('[loadMappings] DB 응답:', { data, error })
 
       if (error) {
         alert('불러오기 실패: ' + error.message)
@@ -195,20 +200,22 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
         return
       }
 
-      if (data.length > 0) {
-        setTemplateName(name)
-        setMappings(data.map((d: { placeholder: string; sheet_name: string; excel_cell: string }) => {
-          const m: MappingRow = {
-            hwpxPlaceholder: d.placeholder,
-            sheetName: d.sheet_name || '',
-            excelCell: d.excel_cell || '',
-            excelValue: '',
-          }
-          m.excelValue = resolveValue(m)
-          return m
-        }))
-      }
+      setTemplateName(name)
+      const newMappings = data.map((d: { placeholder: string; sheet_name: string; excel_cell: string }) => {
+        const m: MappingRow = {
+          hwpxPlaceholder: d.placeholder,
+          sheetName: d.sheet_name || '',
+          excelCell: d.excel_cell || '',
+          excelValue: '',
+        }
+        m.excelValue = resolveValue(m)
+        return m
+      })
+      console.log('[loadMappings] 세팅할 매핑:', newMappings)
+      mappingsLoadedRef.current = true
+      setMappings(newMappings)
     } catch (err) {
+      console.error('[loadMappings] 에러:', err)
       alert('매핑 불러오기 오류: ' + (err as Error).message)
     }
   }
@@ -327,27 +334,22 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
     const phs = extractPlaceholders(xml)
     setPlaceholders(phs)
 
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-    if (isMobile) {
-      // 모바일: 기존 매핑 유지
-      setMappings(prev => {
-        const existing = new Map(prev.map(m => [m.hwpxPlaceholder, m]))
-        return phs.map(ph => existing.get(ph) || ({
-          sheetName: '',
-          excelCell: '',
-          hwpxPlaceholder: ph,
-          excelValue: '',
-        }))
-      })
-    } else {
-      // PC: 새로 세팅
-      setMappings(phs.map(ph => ({
+    // loadMappings로 이미 세팅된 경우 덮어쓰지 않음
+    if (mappingsLoadedRef.current) {
+      mappingsLoadedRef.current = false
+      return
+    }
+
+    // 기존 매핑이 있으면 유지, 새 플레이스홀더만 빈 값으로 추가
+    setMappings(prev => {
+      const existing = new Map(prev.map(m => [m.hwpxPlaceholder, m]))
+      return phs.map(ph => existing.get(ph) || ({
         sheetName: '',
         excelCell: '',
         hwpxPlaceholder: ph,
         excelValue: '',
-      })))
-    }
+      }))
+    })
   }, [])
 
   // 매핑 업데이트 (셀 주소만 수동 입력 시 — 시트는 유지)
@@ -523,174 +525,182 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
         </div>
       </div>
 
-      {/* 엑셀 미리보기 (병합 셀 반영) */}
-      {previewData.length > 0 && (
-        <div className="border border-border rounded-xl p-4 space-y-2 bg-card relative z-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-semibold text-sm text-text">엑셀 미리보기</h2>
-            {selectedMapping !== null && (
-              <span className="text-xs px-2 py-0.5 rounded-lg bg-selected text-primary font-medium">
-                매핑 #{selectedMapping + 1} 선택 중 — 셀을 클릭하세요
-              </span>
-            )}
-            {selectedCell && (
-              <span className="text-xs font-mono text-text-light">
-                선택: {selectedCell} = {excelData[selectedCell] || '(빈 셀)'}
-              </span>
-            )}
-          </div>
-          <div className="overflow-auto max-h-[300px] md:max-h-[500px] border border-border rounded-lg relative z-0" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <table className="text-xs border-collapse">
-              <thead>
-                <tr className="bg-cream">
-                  <th className="border border-border px-1 py-0.5 bg-cream min-w-[30px]"></th>
-                  {Array.from({ length: maxCol + 1 }, (_, ci) => (
-                    <th key={ci} className="border border-border px-1 py-0.5 font-mono bg-cream min-w-[40px] text-text-light">
-                      {XLSX.utils.encode_col(ci)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {previewData.slice(0, 30).map((row, ri) => (
-                  <tr key={ri}>
-                    <td className="border border-border px-1 py-0.5 font-mono bg-cream text-center text-[10px] text-text-light">
-                      {ri + 1}
-                    </td>
-                    {row.map((val, ci) => {
-                      const info = mergeMap[`${ri}:${ci}`]
-                      if (info?.hidden) return null
-
-                      const addr = XLSX.utils.encode_cell({ r: ri, c: ci })
-                      const isSelected = selectedCell === addr
-
-                      return (
-                        <td
-                          key={ci}
-                          colSpan={info?.colSpan || 1}
-                          rowSpan={info?.rowSpan || 1}
-                          onClick={() => handleCellClick(ri, ci)}
-                          className={`border border-border px-1 py-0.5 cursor-pointer whitespace-pre-wrap max-w-[200px] truncate ${
-                            isSelected
-                              ? 'bg-selected ring-2 ring-selected-ring'
-                              : 'hover:bg-peach/50'
-                          } ${val ? '' : 'text-text-light/40'}`}
-                          title={`${addr}: ${val}`}
-                        >
-                          {val || '\u00A0'}
-                        </td>
-                      )
-                    })}
+      {/* 엑셀 미리보기 + 매핑 설정 좌우 배치 */}
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* 왼쪽: 엑셀 미리보기 */}
+        {previewData.length > 0 && (
+          <div className="border border-border rounded-xl p-4 space-y-2 bg-card relative z-0 lg:flex-1 lg:min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-semibold text-sm text-text">엑셀 미리보기</h2>
+              {selectedMapping !== null && (
+                <span className="text-xs px-2 py-0.5 rounded-lg bg-selected text-primary font-medium">
+                  매핑 #{selectedMapping + 1} 선택 중 — 셀을 클릭하세요
+                </span>
+              )}
+              {selectedCell && (
+                <span className="text-xs font-mono text-text-light">
+                  선택: {selectedCell} = {excelData[selectedCell] || '(빈 셀)'}
+                </span>
+              )}
+            </div>
+            <div className="overflow-auto max-h-[300px] md:max-h-[600px] border border-border rounded-lg relative z-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <table className="text-xs border-collapse">
+                <thead>
+                  <tr className="bg-cream">
+                    <th className="border border-border px-1 py-0.5 bg-cream min-w-[30px]"></th>
+                    {Array.from({ length: maxCol + 1 }, (_, ci) => (
+                      <th key={ci} className="border border-border px-1 py-0.5 font-mono bg-cream min-w-[40px] text-text-light">
+                        {XLSX.utils.encode_col(ci)}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                </thead>
+                <tbody>
+                  {previewData.slice(0, 100).map((row, ri) => (
+                    <tr key={ri}>
+                      <td className="border border-border px-1 py-0.5 font-mono bg-cream text-center text-[10px] text-text-light">
+                        {ri + 1}
+                      </td>
+                      {row.map((val, ci) => {
+                        const info = mergeMap[`${ri}:${ci}`]
+                        if (info?.hidden) return null
 
-      {/* 저장된 매핑 불러오기 */}
-      {savedTemplates.length > 0 && (
-        <div className="border border-border rounded-xl p-4 space-y-2 bg-card">
-          <h2 className="font-semibold text-sm text-text">저장된 매핑</h2>
-          <div className="flex flex-wrap gap-2">
-            {savedTemplates.map(name => (
-              <div key={name} className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-cream">
-                <button
-                  onClick={() => loadMappings(name)}
-                  className="text-sm text-text hover:text-primary transition-colors"
-                >
-                  {name}
-                </button>
-                <button
-                  onClick={() => deleteTemplate(name)}
-                  className="text-danger/60 hover:text-danger text-xs ml-1 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                        const addr = XLSX.utils.encode_cell({ r: ri, c: ci })
+                        const isSelected = selectedCell === addr
 
-      {/* 매핑 테이블 */}
-      {mappings.length > 0 && (
-        <div className="border border-border rounded-xl p-4 space-y-3 bg-card">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-sm text-text">3. 매핑 설정 (행을 클릭하여 선택 → 엑셀 셀 클릭)</h2>
-            <button
-              onClick={addMapping}
-              className="text-xs px-2 py-1 rounded-lg bg-primary text-white hover:bg-primary-dark transition-colors"
-            >
-              + 매핑 추가
-            </button>
+                        return (
+                          <td
+                            key={ci}
+                            colSpan={info?.colSpan || 1}
+                            rowSpan={info?.rowSpan || 1}
+                            onClick={() => handleCellClick(ri, ci)}
+                            className={`border border-border px-1 py-0.5 cursor-pointer whitespace-pre-wrap max-w-[200px] truncate ${
+                              isSelected
+                                ? 'bg-selected ring-2 ring-selected-ring'
+                                : 'hover:bg-peach/50'
+                            } ${val ? '' : 'text-text-light/40'}`}
+                            title={`${addr}: ${val}`}
+                          >
+                            {val || '\u00A0'}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-cream">
-                <th className="border border-border px-2 py-1 w-8 text-text-light">#</th>
-                <th className="border border-border px-2 py-1 text-left text-text-light">HWPX 플레이스홀더</th>
-                <th className="border border-border px-2 py-1 text-left text-text-light">시트</th>
-                <th className="border border-border px-2 py-1 text-left text-text-light">셀 주소</th>
-                <th className="border border-border px-2 py-1 text-left text-text-light">미리보기 값</th>
-                <th className="border border-border px-2 py-1 w-10"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {mappings.map((m, i) => (
-                <tr
-                  key={i}
-                  onClick={() => handleMappingSelect(i)}
-                  className={`cursor-pointer transition-colors ${
-                    selectedMapping === i
-                      ? 'bg-selected ring-1 ring-selected-ring'
-                      : 'hover:bg-peach/50'
-                  }`}
-                >
-                  <td className="border border-border px-2 py-1 text-center text-xs text-text-light">
-                    {i + 1}
-                  </td>
-                  <td className="border border-border px-2 py-1">
-                    <input
-                      value={m.hwpxPlaceholder}
-                      onChange={e => updatePlaceholder(i, e.target.value)}
-                      onClick={e => e.stopPropagation()}
-                      className="w-full rounded-lg border border-border bg-bg px-1 py-0.5 text-sm font-mono focus:ring-2 focus:ring-primary focus:outline-none"
-                      placeholder="$플레이스홀더$"
-                    />
-                  </td>
-                  <td className="border border-border px-2 py-1">
-                    <span className="text-xs font-mono text-text-light">
-                      {m.sheetName || '-'}
-                    </span>
-                  </td>
-                  <td className="border border-border px-2 py-1">
-                    <input
-                      value={m.excelCell}
-                      onChange={e => updateMappingCell(i, e.target.value)}
-                      onClick={e => e.stopPropagation()}
-                      className="w-full rounded-lg border border-border bg-bg px-1 py-0.5 text-sm font-mono focus:ring-2 focus:ring-primary focus:outline-none"
-                      placeholder="예: A1, B3"
-                    />
-                  </td>
-                  <td className="border border-border px-2 py-1 text-text-light font-mono text-xs">
-                    {m.excelValue || '-'}
-                  </td>
-                  <td className="border border-border px-2 py-1 text-center">
+        )}
+
+        {/* 오른쪽: 저장된 매핑 + 매핑 설정 */}
+        <div className="flex flex-col gap-4 lg:flex-1 lg:min-w-0">
+          {/* 저장된 매핑 불러오기 */}
+          {savedTemplates.length > 0 && (
+            <div className="border border-border rounded-xl p-4 space-y-2 bg-card">
+              <h2 className="font-semibold text-sm text-text">저장된 매핑</h2>
+              <div className="flex flex-wrap gap-2">
+                {savedTemplates.map(name => (
+                  <div key={name} className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-cream">
                     <button
-                      onClick={e => { e.stopPropagation(); removeMapping(i) }}
-                      className="text-danger/60 hover:text-danger text-xs transition-colors"
+                      onClick={() => loadMappings(name)}
+                      className="text-sm text-text hover:text-primary transition-colors"
+                    >
+                      {name}
+                    </button>
+                    <button
+                      onClick={() => deleteTemplate(name)}
+                      className="text-danger/60 hover:text-danger text-xs ml-1 transition-colors"
                     >
                       ✕
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 매핑 테이블 */}
+          {mappings.length > 0 && (
+            <div className="border border-border rounded-xl p-4 space-y-3 bg-card">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-sm text-text">3. 매핑 설정 (행을 클릭하여 선택 → 엑셀 셀 클릭)</h2>
+                <button
+                  onClick={addMapping}
+                  className="text-xs px-2 py-1 rounded-lg bg-primary text-white hover:bg-primary-dark transition-colors"
+                >
+                  + 매핑 추가
+                </button>
+              </div>
+              <div className="overflow-auto max-h-[300px] md:max-h-[600px]">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-cream">
+                      <th className="border border-border px-2 py-1 w-8 text-text-light">#</th>
+                      <th className="border border-border px-2 py-1 text-left text-text-light">HWPX 플레이스홀더</th>
+                      <th className="border border-border px-2 py-1 text-left text-text-light">시트</th>
+                      <th className="border border-border px-2 py-1 text-left text-text-light">셀 주소</th>
+                      <th className="border border-border px-2 py-1 text-left text-text-light">미리보기 값</th>
+                      <th className="border border-border px-2 py-1 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mappings.map((m, i) => (
+                      <tr
+                        key={i}
+                        onClick={() => handleMappingSelect(i)}
+                        className={`cursor-pointer transition-colors ${
+                          selectedMapping === i
+                            ? 'bg-selected ring-1 ring-selected-ring'
+                            : 'hover:bg-peach/50'
+                        }`}
+                      >
+                        <td className="border border-border px-2 py-1 text-center text-xs text-text-light">
+                          {i + 1}
+                        </td>
+                        <td className="border border-border px-2 py-1">
+                          <input
+                            value={m.hwpxPlaceholder}
+                            onChange={e => updatePlaceholder(i, e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            className="w-full rounded-lg border border-border bg-bg px-1 py-0.5 text-sm font-mono focus:ring-2 focus:ring-primary focus:outline-none"
+                            placeholder="$플레이스홀더$"
+                          />
+                        </td>
+                        <td className="border border-border px-2 py-1">
+                          <span className="text-xs font-mono text-text-light">
+                            {m.sheetName || '-'}
+                          </span>
+                        </td>
+                        <td className="border border-border px-2 py-1">
+                          <input
+                            value={m.excelCell}
+                            onChange={e => updateMappingCell(i, e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            className="w-full rounded-lg border border-border bg-bg px-1 py-0.5 text-sm font-mono focus:ring-2 focus:ring-primary focus:outline-none"
+                            placeholder="예: A1, B3"
+                          />
+                        </td>
+                        <td className="border border-border px-2 py-1 text-text-light font-mono text-xs">
+                          {m.excelValue || '-'}
+                        </td>
+                        <td className="border border-border px-2 py-1 text-center">
+                          <button
+                            onClick={e => { e.stopPropagation(); removeMapping(i) }}
+                            className="text-danger/60 hover:text-danger text-xs transition-colors"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* 매핑 저장 + 생성 버튼 */}
       {mappings.length > 0 && (
