@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import JSZip from 'jszip'
-import { supabase, ensureSession } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { useDragScroll } from '@/lib/useDragScroll'
 
 interface MappingRow {
@@ -118,7 +118,6 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
   }, [])
 
   const loadTemplateList = async () => {
-    await ensureSession()
     const { data, error } = await supabase
       .from('hwpx_mappings')
       .select('template_name')
@@ -150,7 +149,7 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
 
     setSaving(true)
     try {
-      await ensureSession()
+
       // 기존 매핑 삭제 후 새로 삽입
       await supabase
         .from('hwpx_mappings')
@@ -183,7 +182,7 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
     console.log('[loadMappings] 호출:', name)
     console.log('[loadMappings] 현재 placeholders:', placeholders)
     try {
-      await ensureSession()
+
       const { data, error } = await supabase
         .from('hwpx_mappings')
         .select('placeholder, sheet_name, excel_cell')
@@ -226,7 +225,6 @@ export default function ExcelToHwpxPage({ userId }: PageProps) {
   const deleteTemplate = async (name: string) => {
     if (!confirm(`"${name}" 매핑을 정말 삭제하시겠습니까?`)) return
 
-    await ensureSession()
     await supabase
       .from('hwpx_mappings')
       .delete()
